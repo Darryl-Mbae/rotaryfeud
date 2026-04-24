@@ -43,6 +43,7 @@ export default function HostLogin() {
       if (!res.ok) { setError(data.error || 'Login failed'); return; }
       sessionStorage.setItem('hostToken', data.token);
       sessionStorage.setItem('roomCode', data.roomCode);
+      window.dispatchEvent(new CustomEvent('roomCodeSet', { detail: data.roomCode }));
       navigate('/registration');
     } catch { setError('Could not connect to server.'); }
     finally { setLoading(false); }
@@ -82,6 +83,7 @@ export default function HostLogin() {
                 if (res.ok) {
                   sessionStorage.setItem('hostToken', data.token);
                   sessionStorage.setItem('roomCode', data.roomCode);
+                  window.dispatchEvent(new CustomEvent('roomCodeSet', { detail: data.roomCode }));
                   navigate('/registration');
                 }
               } finally { setLoading(false); }

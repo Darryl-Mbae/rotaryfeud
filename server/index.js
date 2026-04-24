@@ -4,7 +4,7 @@ const http         = require('http');
 const { Server }   = require('socket.io');
 const cors         = require('cors');
 const helmet       = require('helmet');
-const rateLimit    = require('express-rate-limit');
+
 const crypto       = require('crypto');
 const path         = require('path');
 
@@ -93,9 +93,6 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.static(CLIENT_DIST));
 
-const apiLimiter  = rateLimit({ windowMs: 15*60*1000, max: 100, standardHeaders: true, legacyHeaders: false });
-const authLimiter = rateLimit({ windowMs: 15*60*1000, max: 10,  message: { error: 'Too many attempts.' } });
-app.use('/api', apiLimiter);
 
 // ── REST API ──────────────────────────────────────────────────────────────────
 
@@ -108,7 +105,7 @@ app.get('/api/state', (req, res) => {
 });
 
 // Generate a new host PIN + room code — creates the room
-app.post('/api/auth/setup-pin', authLimiter, (req, res) => {
+app.post('/api/auth/setup-pin', (req, res) => {
   const pin      = randomCode(6);
   const roomCode = randomCode(6);
   const pinHash  = hashPin(pin);
@@ -118,7 +115,7 @@ app.post('/api/auth/setup-pin', authLimiter, (req, res) => {
 });
 
 // Host login — verify PIN for a specific room
-app.post('/api/auth/host', authLimiter, (req, res) => {
+app.post('/api/auth/host', (req, res) => {
   const { pin, roomCode } = req.body;
   if (!pin || !roomCode) return res.status(400).json({ error: 'PIN and room code are required' });
   const room = getRoom(roomCode.toUpperCase());
@@ -133,7 +130,7 @@ app.post('/api/auth/host', authLimiter, (req, res) => {
 });
 
 // Audience join — validate room exists
-app.post('/api/auth/audience', authLimiter, (req, res) => {
+app.post('/api/auth/audience', (req, res) => {
   const { code } = req.body;
   if (!code) return res.status(400).json({ error: 'Room code is required' });
   const room = getRoom(code.trim().toUpperCase());
@@ -179,16 +176,6 @@ const io = new Server(server, { cors: { origin: ALLOWED_ORIGINS, credentials: tr
 // socketRooms: Map<socketId, roomCode>
 const socketRooms    = new Map();
 const hostSockets    = new Set(); // socket IDs that are authenticated hosts
-const socketCounts   = new Map(); // rate limiting
-
-function isRateLimited(socketId) {
-  const now = Date.now();
-  const e = socketCounts.get(socketId) || { count: 0, windowStart: now };
-  if (now - e.windowStart > 10_000) { e.count = 1; e.windowStart = now; }
-  else e.count++;
-  socketCounts.set(socketId, e);
-  return e.count > 30;
-}
 
 io.on('connection', (socket) => {
   logger.info('Client connected', { socketId: socket.id });
@@ -226,11 +213,6 @@ io.on('connection', (socket) => {
     const roomCode = socketRooms.get(socket.id);
     if (!roomCode) { socket.emit('error', { message: 'Not in a room' }); return; }
 
-    if (isRateLimited(socket.id)) {
-      logger.warn('Socket rate limited', { socketId: socket.id });
-      return;
-    }
-
     if (HOST_ONLY_ACTIONS.has(action?.type) && !hostSockets.has(socket.id)) {
       socket.emit('error', { message: 'Host authentication required' });
       return;
@@ -250,7 +232,6 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     hostSockets.delete(socket.id);
     socketRooms.delete(socket.id);
-    socketCounts.delete(socket.id);
     logger.info('Client disconnected', { socketId: socket.id });
   });
 });

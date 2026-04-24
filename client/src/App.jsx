@@ -19,7 +19,7 @@ function ProtectedHost({ state, dispatch }) {
 }
 
 export default function App() {
-  const { state, dispatch } = useGameState();
+  const { state, dispatch, socketError } = useGameState();
   const navigate = useNavigate();
 
   useEffect(() => {
