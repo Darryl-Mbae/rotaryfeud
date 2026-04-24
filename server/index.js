@@ -8,9 +8,9 @@ const rateLimit    = require('express-rate-limit');
 const crypto       = require('crypto');
 const path         = require('path');
 
-const logger     = require('./logger');
-const { saveGameSession, getRecentSessions, getStoredPin, storePin } = require('./db');
-const { validateAction, sanitizeString, HOST_ONLY_ACTIONS } = require('./validation');
+const logger   = require('./logger');
+const { saveGameSession, getRecentSessions } = require('./db');
+const { validateAction, HOST_ONLY_ACTIONS }  = require('./validation');
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const PORT        = process.env.PORT || 3001;
@@ -21,45 +21,68 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
   : ['http://localhost:5173', 'http://localhost:3001'];
 
-// 6-char alphanumeric PIN generator (uppercase + digits, no ambiguous chars)
-function generatePin() {
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function randomCode(len = 6) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let pin = '';
-  for (let i = 0; i < 6; i++) pin += chars[Math.floor(Math.random() * chars.length)];
-  return pin;
+  let s = '';
+  for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
 }
 
 function hashPin(pin) {
   return crypto.createHash('sha256').update(pin.trim().toUpperCase()).digest('hex');
 }
 
-// Load stored PIN hash (null if none set yet)
-let currentPinHash = getStoredPin();
-
-// ── Room code (audience join code) ───────────────────────────────────────────
-// Generated fresh each time the host authenticates. 6 uppercase chars.
-let currentRoomCode = null;
-
-function generateRoomCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no O/0/I/1 confusion
-  let code = '';
-  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
+function signToken(payload) {
+  const secret = process.env.SESSION_SECRET || 'change-me-in-production';
+  const sig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  return `${payload}.${sig}`;
 }
 
-// ── Express setup ─────────────────────────────────────────────────────────────
+function verifyToken(token) {
+  try {
+    const [payload, sig] = token.split('.');
+    if (!payload || !sig) return null;
+    const secret = process.env.SESSION_SECRET || 'change-me-in-production';
+    const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+    if (sig !== expected) return null;
+    const [ts, roomCode] = payload.split(':');
+    if (Date.now() - parseInt(ts, 10) > 8 * 60 * 60 * 1000) return null;
+    return { roomCode };
+  } catch { return null; }
+}
+
+// ── Room store ────────────────────────────────────────────────────────────────
+// Map<roomCode, { pinHash, state, hostSocketId }>
+const rooms = new Map();
+
+function buildInitialState() {
+  return {
+    phase: 'registration',
+    tournament: {
+      teams: [], currentRound: 'setup',
+      currentMatch: 0, matches: [], questionsAnswered: 0
+    },
+    currentQ: 0, wrong: 0, flippedCards: [], boardScore: 0, pointsAwarded: false
+  };
+}
+
+function getRoom(roomCode) { return rooms.get(roomCode); }
+
+function broadcastRoom(roomCode) {
+  const room = getRoom(roomCode);
+  if (!room) return;
+  io.to(roomCode).emit('stateSync', room.state);
+}
+
+// ── Express ───────────────────────────────────────────────────────────────────
 const app    = express();
 const server = http.createServer(app);
 
-// Security headers (relaxed for Socket.io & React assets)
-app.use(helmet({
-  contentSecurityPolicy: false // configure properly once you have a domain
-}));
+app.use(helmet({ contentSecurityPolicy: false }));
 
-// CORS — locked to known origins
 const corsOptions = {
   origin: (origin, cb) => {
-    // Allow same-origin requests (no origin header) and listed origins
     if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
     logger.warn('Blocked CORS request', { origin });
     cb(new Error('Not allowed by CORS'));
@@ -67,456 +90,285 @@ const corsOptions = {
   credentials: true
 };
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '10kb' })); // prevent large payload attacks
-
-// Rate limiting — general API
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many requests, please slow down.' }
-});
-
-// Stricter limiter for auth endpoint
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: { error: 'Too many login attempts, try again later.' }
-});
-
-app.use('/api', apiLimiter);
-
-// Serve the built React app
+app.use(express.json({ limit: '10kb' }));
 app.use(express.static(CLIENT_DIST));
 
-// ── Game state ────────────────────────────────────────────────────────────────
-let gameState = buildInitialState();
-
-function buildInitialState() {
-  return {
-    phase: 'registration',
-    tournament: {
-      teams: [],
-      currentRound: 'setup',
-      currentMatch: 0,
-      matches: [],
-      questionsAnswered: 0
-    },
-    currentQ: 0,
-    wrong: 0,
-    flippedCards: [],
-    boardScore: 0,
-    pointsAwarded: false
-  };
-}
-
-function resetState() {
-  gameState = buildInitialState();
-}
+const apiLimiter  = rateLimit({ windowMs: 15*60*1000, max: 100, standardHeaders: true, legacyHeaders: false });
+const authLimiter = rateLimit({ windowMs: 15*60*1000, max: 10,  message: { error: 'Too many attempts.' } });
+app.use('/api', apiLimiter);
 
 // ── REST API ──────────────────────────────────────────────────────────────────
 
-// Public: game state snapshot (for page refresh)
+// State snapshot for a specific room (used on page refresh)
 app.get('/api/state', (req, res) => {
-  res.json(gameState);
+  const roomCode = req.query.room?.toUpperCase();
+  const room = roomCode && getRoom(roomCode);
+  if (!room) return res.json(buildInitialState());
+  res.json(room.state);
 });
 
-// Public: check whether a host PIN has been set up yet
-app.get('/api/auth/pin-status', (req, res) => {
-  res.json({ exists: !!currentPinHash });
+// Generate a new host PIN + room code — creates the room
+app.post('/api/auth/setup-pin', authLimiter, (req, res) => {
+  const pin      = randomCode(6);
+  const roomCode = randomCode(6);
+  const pinHash  = hashPin(pin);
+  rooms.set(roomCode, { pinHash, state: buildInitialState(), hostSocketId: null });
+  logger.info('Room created', { roomCode, ip: req.ip });
+  res.json({ pin, roomCode });
 });
 
-// DEV ONLY: clear the PIN so setup screen shows again (remove before production)
+// Host login — verify PIN for a specific room
+app.post('/api/auth/host', authLimiter, (req, res) => {
+  const { pin, roomCode } = req.body;
+  if (!pin || !roomCode) return res.status(400).json({ error: 'PIN and room code are required' });
+  const room = getRoom(roomCode.toUpperCase());
+  if (!room) return res.status(404).json({ error: 'Room not found' });
+  if (hashPin(pin) !== room.pinHash) {
+    logger.warn('Failed host login', { ip: req.ip, roomCode });
+    return res.status(401).json({ error: 'Invalid PIN' });
+  }
+  const token = signToken(`${Date.now()}:${roomCode.toUpperCase()}`);
+  logger.info('Host authenticated', { ip: req.ip, roomCode });
+  res.json({ token, roomCode: roomCode.toUpperCase() });
+});
+
+// Audience join — validate room exists
+app.post('/api/auth/audience', authLimiter, (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ error: 'Room code is required' });
+  const room = getRoom(code.trim().toUpperCase());
+  if (!room) {
+    logger.warn('Failed audience join — room not found', { ip: req.ip, code });
+    return res.status(404).json({ error: 'Room not found. Check the code and try again.' });
+  }
+  logger.info('Audience joined', { ip: req.ip, roomCode: code.toUpperCase() });
+  res.json({ success: true, roomCode: code.trim().toUpperCase() });
+});
+
+// Admin: DB overview (requires valid host token)
+app.get('/api/admin/db', requireHostToken, (req, res) => {
+  const sessions = getRecentSessions();
+  const activeRooms = [...rooms.entries()].map(([code, r]) => ({
+    code, phase: r.state.phase, teams: r.state.tournament.teams
+  }));
+  res.json({ activeRooms, recentSessions: sessions });
+});
+
+// DEV: reset all rooms
 if (process.env.NODE_ENV !== 'production') {
-  app.post('/api/dev/reset-pin', (req, res) => {
-    const { clearPin } = require('./db');
-    currentPinHash = null;
-    clearPin();
-    logger.warn('DEV: PIN cleared via reset endpoint');
+  app.post('/api/dev/reset', (req, res) => {
+    rooms.clear();
+    logger.warn('DEV: all rooms cleared');
     res.json({ ok: true });
   });
 }
 
-// Public: generate a PIN — no secret required, anyone can become a host
-app.post('/api/auth/setup-pin', authLimiter, (req, res) => {
-  const pin = generatePin();
-  currentPinHash = hashPin(pin);
-  storePin(currentPinHash);
-  logger.info('Host PIN generated', { ip: req.ip });
-  res.json({ pin });
-});
-
-// Public: verify host PIN — returns a session token + room code on success
-app.post('/api/auth/host', authLimiter, (req, res) => {
-  const { pin } = req.body;
-  if (!pin || typeof pin !== 'string') {
-    return res.status(400).json({ error: 'PIN is required' });
-  }
-  if (!currentPinHash) {
-    return res.status(403).json({ error: 'No PIN configured. Please set up a PIN first.' });
-  }
-  if (hashPin(pin) !== currentPinHash) {
-    logger.warn('Failed host login attempt', { ip: req.ip });
-    return res.status(401).json({ error: 'Invalid PIN' });
-  }
-  const secret = process.env.SESSION_SECRET || 'change-me-in-production';
-  const payload = Date.now().toString();
-  const sig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-  const token = `${payload}.${sig}`;
-  currentRoomCode = generateRoomCode();
-  logger.info('Host authenticated', { ip: req.ip, roomCode: currentRoomCode });
-  res.json({ token, roomCode: currentRoomCode });
-});
-
-// Protected: regenerate PIN — host must already be logged in
-app.post('/api/auth/regenerate-pin', requireHostToken, (req, res) => {
-  const pin = generatePin();
-  currentPinHash = hashPin(pin);
-  storePin(currentPinHash);
-  logger.info('Host PIN regenerated', { ip: req.ip });
-  res.json({ pin });
-});
-
-// Public: audience join — validate room code
-app.post('/api/auth/audience', authLimiter, (req, res) => {
-  const { code } = req.body;
-  if (!code || typeof code !== 'string') {
-    return res.status(400).json({ error: 'Room code is required' });
-  }
-  if (!currentRoomCode) {
-    return res.status(404).json({ error: 'No active game room. Ask the host to log in first.' });
-  }
-  if (code.trim().toUpperCase() !== currentRoomCode) {
-    logger.warn('Failed audience join attempt', { ip: req.ip, code });
-    return res.status(401).json({ error: 'Invalid room code' });
-  }
-  logger.info('Audience member joined', { ip: req.ip });
-  res.json({ success: true });
-});
-
-// Public: get current room code status (just whether one exists, not the code itself)
-app.get('/api/room/status', (req, res) => {
-  res.json({ active: !!currentRoomCode });
-});
-
-// Admin: recent game sessions
-app.get('/api/admin/sessions', requireHostToken, (req, res) => {
-  res.json(getRecentSessions());
-});
-
-// Admin: DB overview — sessions + current room status
-app.get('/api/admin/db', requireHostToken, (req, res) => {
-  const sessions = getRecentSessions();
-  res.json({
-    currentRoom: {
-      code: currentRoomCode,
-      active: !!currentRoomCode,
-      gamePhase: gameState.phase,
-      teams: gameState.tournament.teams
-    },
-    recentSessions: sessions,
-    totalSessions: sessions.length
-  });
-});
-
-// Admin: update PIN
-app.post('/api/admin/pin', requireHostToken, (req, res) => {
-  const { newPin } = req.body;
-  if (!newPin || typeof newPin !== 'string' || newPin.length < 4) {
-    return res.status(400).json({ error: 'New PIN must be at least 4 characters' });
-  }
-  const hash = crypto.createHash('sha256').update(newPin.trim()).digest('hex');
-  storePin(hash);
-  currentPinHash = hash;
-  logger.info('Host PIN updated', { ip: req.ip });
-  res.json({ success: true });
-});
-
 // ── Token middleware ──────────────────────────────────────────────────────────
 function requireHostToken(req, res, next) {
   const auth = req.headers.authorization;
-  if (!auth?.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  if (!verifyToken(auth.slice(7))) {
-    return res.status(401).json({ error: 'Invalid or expired token' });
-  }
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+  const decoded = verifyToken(auth.slice(7));
+  if (!decoded) return res.status(401).json({ error: 'Invalid or expired token' });
+  req.roomCode = decoded.roomCode;
   next();
 }
 
-function verifyToken(token) {
-  try {
-    const [payload, sig] = token.split('.');
-    if (!payload || !sig) return false;
-    const secret = process.env.SESSION_SECRET || 'change-me-in-production';
-    const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-    if (sig !== expected) return false;
-    // Token expires after 8 hours
-    const age = Date.now() - parseInt(payload, 10);
-    return age < 8 * 60 * 60 * 1000;
-  } catch {
-    return false;
-  }
-}
-
 // ── Socket.io ─────────────────────────────────────────────────────────────────
-const io = new Server(server, {
-  cors: {
-    origin: ALLOWED_ORIGINS,
-    credentials: true
-  }
-});
+const io = new Server(server, { cors: { origin: ALLOWED_ORIGINS, credentials: true } });
 
-// Track which socket IDs are authenticated hosts
-const authenticatedHosts = new Set();
+// socketRooms: Map<socketId, roomCode>
+const socketRooms    = new Map();
+const hostSockets    = new Set(); // socket IDs that are authenticated hosts
+const socketCounts   = new Map(); // rate limiting
 
-// Socket rate limiting — max 30 actions per 10 seconds per socket
-const socketActionCounts = new Map();
-function isSocketRateLimited(socketId) {
+function isRateLimited(socketId) {
   const now = Date.now();
-  const entry = socketActionCounts.get(socketId) || { count: 0, windowStart: now };
-  if (now - entry.windowStart > 10_000) {
-    entry.count = 1;
-    entry.windowStart = now;
-  } else {
-    entry.count++;
-  }
-  socketActionCounts.set(socketId, entry);
-  return entry.count > 30;
+  const e = socketCounts.get(socketId) || { count: 0, windowStart: now };
+  if (now - e.windowStart > 10_000) { e.count = 1; e.windowStart = now; }
+  else e.count++;
+  socketCounts.set(socketId, e);
+  return e.count > 30;
 }
 
 io.on('connection', (socket) => {
   logger.info('Client connected', { socketId: socket.id });
 
-  // Send current state immediately
-  socket.emit('stateSync', gameState);
-
-  // Host authentication over socket
-  socket.on('hostAuth', ({ token }) => {
-    if (verifyToken(token)) {
-      authenticatedHosts.add(socket.id);
-      socket.emit('hostAuthResult', { success: true });
-      logger.info('Host socket authenticated', { socketId: socket.id });
-    } else {
-      socket.emit('hostAuthResult', { success: false, error: 'Invalid token' });
-      logger.warn('Failed host socket auth', { socketId: socket.id });
+  // Client must join a room first
+  socket.on('joinRoom', ({ roomCode, token }) => {
+    const code = roomCode?.toUpperCase();
+    const room = getRoom(code);
+    if (!room) {
+      socket.emit('roomError', { message: 'Room not found' });
+      return;
     }
+    socket.join(code);
+    socketRooms.set(socket.id, code);
+
+    // If a valid host token is provided, authenticate as host
+    if (token) {
+      const decoded = verifyToken(token);
+      if (decoded?.roomCode === code) {
+        hostSockets.add(socket.id);
+        room.hostSocketId = socket.id;
+        socket.emit('hostAuthResult', { success: true });
+        logger.info('Host socket joined room', { socketId: socket.id, roomCode: code });
+      } else {
+        socket.emit('hostAuthResult', { success: false, error: 'Invalid token' });
+      }
+    }
+
+    // Send current room state
+    socket.emit('stateSync', room.state);
+    logger.info('Socket joined room', { socketId: socket.id, roomCode: code });
   });
 
   socket.on('action', (action) => {
-    // Rate limit check
-    if (isSocketRateLimited(socket.id)) {
-      logger.warn('Socket rate limited', { socketId: socket.id, action: action?.type });
+    const roomCode = socketRooms.get(socket.id);
+    if (!roomCode) { socket.emit('error', { message: 'Not in a room' }); return; }
+
+    if (isRateLimited(socket.id)) {
+      logger.warn('Socket rate limited', { socketId: socket.id });
       return;
     }
 
-    // Host-only action guard
-    if (HOST_ONLY_ACTIONS.has(action?.type) && !authenticatedHosts.has(socket.id)) {
-      logger.warn('Unauthorized action attempt', { socketId: socket.id, action: action?.type });
+    if (HOST_ONLY_ACTIONS.has(action?.type) && !hostSockets.has(socket.id)) {
       socket.emit('error', { message: 'Host authentication required' });
       return;
     }
 
-    // Validate & sanitize
     const { valid, error } = validateAction(action);
-    if (!valid) {
-      logger.warn('Invalid action rejected', { socketId: socket.id, action, error });
-      socket.emit('error', { message: error });
-      return;
-    }
+    if (!valid) { socket.emit('error', { message: error }); return; }
 
     try {
-      handleAction(action);
+      handleAction(roomCode, action);
     } catch (err) {
-      logger.error('Error handling action', { action: action?.type, error: err.message, stack: err.stack });
-      socket.emit('error', { message: 'Server error processing action' });
+      logger.error('Action error', { roomCode, action: action?.type, error: err.message });
+      socket.emit('error', { message: 'Server error' });
     }
   });
 
   socket.on('disconnect', () => {
-    authenticatedHosts.delete(socket.id);
-    socketActionCounts.delete(socket.id);
+    hostSockets.delete(socket.id);
+    socketRooms.delete(socket.id);
+    socketCounts.delete(socket.id);
     logger.info('Client disconnected', { socketId: socket.id });
-  });
-
-  socket.on('error', (err) => {
-    logger.error('Socket error', { socketId: socket.id, error: err.message });
   });
 });
 
-function broadcast() {
-  io.emit('stateSync', gameState);
-}
-
 // ── Action handlers ───────────────────────────────────────────────────────────
-function handleAction(action) {
-  switch (action.type) {
+function handleAction(roomCode, action) {
+  const room = getRoom(roomCode);
+  if (!room) return;
+  const gs = room.state;
 
+  switch (action.type) {
     case 'START_TOURNAMENT': {
-      const teams = action.teams.map((name, i) => ({
-        id: i,
-        name: name || `Team ${i + 1}`,
-        score: 0
-      }));
-      gameState.tournament.teams = teams;
-      gameState.tournament.currentRound = 'round1';
-      gameState.tournament.matches = [
+      const teams = action.teams.map((name, i) => ({ id: i, name: name || `Team ${i+1}`, score: 0 }));
+      gs.tournament.teams = teams;
+      gs.tournament.currentRound = 'round1';
+      gs.tournament.matches = [
         { team1: 0, team2: 1, questions: 4 },
         { team1: 2, team2: 3, questions: 4 },
         { team1: 4, team2: 5, questions: 4 }
       ];
-      gameState.tournament.currentMatch = 0;
-      gameState.tournament.questionsAnswered = 0;
-      gameState.currentQ = 0;
-      gameState.wrong = 0;
-      gameState.flippedCards = [];
-      gameState.boardScore = 0;
-      gameState.phase = 'game';
-      logger.info('Tournament started', { teams: teams.map(t => t.name) });
+      gs.tournament.currentMatch = 0;
+      gs.tournament.questionsAnswered = 0;
+      gs.currentQ = 0; gs.wrong = 0; gs.flippedCards = []; gs.boardScore = 0;
+      gs.phase = 'game';
+      logger.info('Tournament started', { roomCode, teams: teams.map(t => t.name) });
       break;
     }
-
     case 'FLIP_CARD': {
-      const idx = gameState.flippedCards.indexOf(action.cardIndex);
-      if (idx === -1) {
-        gameState.flippedCards.push(action.cardIndex);
-      } else {
-        gameState.flippedCards.splice(idx, 1);
-      }
-      gameState.boardScore = action.boardScore ?? gameState.boardScore;
+      const idx = gs.flippedCards.indexOf(action.cardIndex);
+      if (idx === -1) gs.flippedCards.push(action.cardIndex);
+      else gs.flippedCards.splice(idx, 1);
+      gs.boardScore = action.boardScore ?? gs.boardScore;
       break;
     }
-
     case 'WRONG': {
-      if (gameState.wrong < 3) gameState.wrong++;
+      if (gs.wrong < 3) gs.wrong++;
       break;
     }
-
     case 'NEXT_QUESTION': {
-      gameState.tournament.questionsAnswered++;
-      gameState.wrong = 0;
-      gameState.flippedCards = [];
-      gameState.boardScore = 0;
-      gameState.pointsAwarded = false;
-
-      const currentMatch = gameState.tournament.matches[gameState.tournament.currentMatch];
-      if (gameState.tournament.questionsAnswered >= currentMatch.questions) {
-        gameState.tournament.currentMatch++;
-        gameState.tournament.questionsAnswered = 0;
-
-        if (gameState.tournament.currentMatch >= gameState.tournament.matches.length) {
-          if (gameState.tournament.currentRound === 'round1') {
-            gameState.phase = 'leaderboard';
-            logger.info('Round 1 complete — showing leaderboard');
-          } else if (gameState.tournament.currentRound === 'semifinal') {
-            _setupFinal();
-          } else if (gameState.tournament.currentRound === 'final') {
-            gameState.phase = 'winner';
-            saveGameSession(gameState);
-            logger.info('Game complete — winner determined');
+      gs.tournament.questionsAnswered++;
+      gs.wrong = 0; gs.flippedCards = []; gs.boardScore = 0; gs.pointsAwarded = false;
+      const match = gs.tournament.matches[gs.tournament.currentMatch];
+      if (gs.tournament.questionsAnswered >= match.questions) {
+        gs.tournament.currentMatch++;
+        gs.tournament.questionsAnswered = 0;
+        if (gs.tournament.currentMatch >= gs.tournament.matches.length) {
+          if (gs.tournament.currentRound === 'round1') {
+            gs.phase = 'leaderboard';
+          } else if (gs.tournament.currentRound === 'semifinal') {
+            _setupFinal(gs);
+          } else if (gs.tournament.currentRound === 'final') {
+            gs.phase = 'winner';
+            saveGameSession(gs);
           }
-        } else {
-          gameState.currentQ++;
-        }
-      } else {
-        gameState.currentQ++;
-      }
+        } else { gs.currentQ++; }
+      } else { gs.currentQ++; }
       break;
     }
-
     case 'AWARD_TEAM': {
       const { teamNum, points } = action;
-      const match = gameState.tournament.matches[gameState.tournament.currentMatch];
+      const match = gs.tournament.matches[gs.tournament.currentMatch];
       const teamIdx = teamNum === 1 ? match.team1 : match.team2;
-      gameState.tournament.teams[teamIdx].score += points;
-      gameState.boardScore = 0;
-      gameState.pointsAwarded = true;
-      logger.info('Points awarded', { team: gameState.tournament.teams[teamIdx].name, points });
+      gs.tournament.teams[teamIdx].score += points;
+      gs.boardScore = 0; gs.pointsAwarded = true;
       break;
     }
-
     case 'PROCEED_TO_SEMIFINAL': {
-      const sorted = [...gameState.tournament.teams].sort((a, b) => b.score - a.score);
-      gameState.tournament.teams[sorted[1].id].score = 0;
-      gameState.tournament.teams[sorted[2].id].score = 0;
-      gameState.tournament.currentRound = 'semifinal';
-      gameState.tournament.matches = [
-        { team1: sorted[1].id, team2: sorted[2].id, questions: 3 }
-      ];
-      gameState.tournament.currentMatch = 0;
-      gameState.tournament.questionsAnswered = 0;
-      gameState.currentQ++;
-      gameState.wrong = 0;
-      gameState.flippedCards = [];
-      gameState.boardScore = 0;
-      gameState.phase = 'game';
-      logger.info('Proceeding to semi-final');
+      const sorted = [...gs.tournament.teams].sort((a, b) => b.score - a.score);
+      gs.tournament.teams[sorted[1].id].score = 0;
+      gs.tournament.teams[sorted[2].id].score = 0;
+      gs.tournament.currentRound = 'semifinal';
+      gs.tournament.matches = [{ team1: sorted[1].id, team2: sorted[2].id, questions: 3 }];
+      gs.tournament.currentMatch = 0; gs.tournament.questionsAnswered = 0;
+      gs.currentQ++; gs.wrong = 0; gs.flippedCards = []; gs.boardScore = 0;
+      gs.phase = 'game';
       break;
     }
-
     case 'RESTART': {
-      saveGameSession(gameState);
-      resetState();
-      currentRoomCode = null;
-      logger.info('Game restarted');
+      saveGameSession(gs);
+      room.state = buildInitialState();
+      logger.info('Game restarted', { roomCode });
       break;
     }
   }
 
-  broadcast();
+  broadcastRoom(roomCode);
 }
 
-function _setupFinal() {
-  const sorted = [...gameState.tournament.teams].sort((a, b) => b.score - a.score);
+function _setupFinal(gs) {
+  const sorted = [...gs.tournament.teams].sort((a, b) => b.score - a.score);
   const rank1  = sorted[0].id;
-  const match  = gameState.tournament.matches[0];
-  const t1     = gameState.tournament.teams[match.team1];
-  const t2     = gameState.tournament.teams[match.team2];
+  const match  = gs.tournament.matches[0];
+  const t1 = gs.tournament.teams[match.team1];
+  const t2 = gs.tournament.teams[match.team2];
   const winner   = t1.score > t2.score ? match.team1 : match.team2;
   const opponent = winner === rank1 ? sorted[1].id : rank1;
-
-  gameState.tournament.teams[winner].score   = 0;
-  gameState.tournament.teams[opponent].score = 0;
-  gameState.tournament.currentRound = 'final';
-  gameState.tournament.matches = [{ team1: winner, team2: opponent, questions: 3 }];
-  gameState.tournament.currentMatch = 0;
-  gameState.tournament.questionsAnswered = 0;
-  gameState.currentQ++;
-  gameState.wrong = 0;
-  gameState.flippedCards = [];
-  gameState.boardScore = 0;
-  gameState.phase = 'game';
-  logger.info('Final round set up');
+  gs.tournament.teams[winner].score = 0;
+  gs.tournament.teams[opponent].score = 0;
+  gs.tournament.currentRound = 'final';
+  gs.tournament.matches = [{ team1: winner, team2: opponent, questions: 3 }];
+  gs.tournament.currentMatch = 0; gs.tournament.questionsAnswered = 0;
+  gs.currentQ++; gs.wrong = 0; gs.flippedCards = []; gs.boardScore = 0;
+  gs.phase = 'game';
 }
 
-// ── Global error handlers ─────────────────────────────────────────────────────
+// ── Error handlers ────────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
-  logger.error('Unhandled Express error', { error: err.message, stack: err.stack, path: req.path });
+  logger.error('Express error', { error: err.message, path: req.path });
   res.status(500).json({ error: 'Internal server error' });
 });
+process.on('uncaughtException',  (err) => { logger.error('Uncaught exception',  { error: err.message }); process.exit(1); });
+process.on('unhandledRejection', (r)   => { logger.error('Unhandled rejection', { reason: String(r) }); });
 
-process.on('uncaughtException', (err) => {
-  logger.error('Uncaught exception', { error: err.message, stack: err.stack });
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason) => {
-  logger.error('Unhandled promise rejection', { reason: String(reason) });
-});
-
-// ── All other routes → React app ──────────────────────────────────────────────
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(CLIENT_DIST, 'index.html'));
-});
+app.get('*', (_req, res) => res.sendFile(path.join(CLIENT_DIST, 'index.html')));
 
 server.listen(PORT, () => {
   logger.info(`Server running on http://localhost:${PORT}`);
-  // Warn clearly if client dist is missing
   const fs = require('fs');
-  if (!fs.existsSync(CLIENT_DIST)) {
-    logger.error(`CLIENT DIST NOT FOUND at ${CLIENT_DIST} — run 'npm run build' in client/`);
-  } else {
-    logger.info(`Serving client from ${CLIENT_DIST}`);
-  }
+  if (!fs.existsSync(CLIENT_DIST)) logger.error(`CLIENT DIST NOT FOUND at ${CLIENT_DIST}`);
+  else logger.info(`Serving client from ${CLIENT_DIST}`);
 });

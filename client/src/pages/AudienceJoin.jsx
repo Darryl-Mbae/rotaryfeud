@@ -21,6 +21,7 @@ export default function AudienceJoin() {
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Could not join'); return; }
       sessionStorage.setItem('audienceJoined', '1');
+      sessionStorage.setItem('roomCode', data.roomCode);
       navigate('/audience');
     } catch { setError('Could not connect to server.'); }
     finally { setLoading(false); }

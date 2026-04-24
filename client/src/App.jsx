@@ -40,7 +40,10 @@ export default function App() {
     }
   }, [state?.phase]);
 
-  if (!state) {
+  // state is null when no room is joined yet — still render routes so landing/login pages work
+  const hasRoom = !!sessionStorage.getItem('roomCode');
+
+  if (!state && hasRoom) {
     return (
       <div className="loading">
         <div className="loadingSpinner" />
