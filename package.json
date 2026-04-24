@@ -1,0 +1,13 @@
+{
+  "name": "rotary-feud",
+  "version": "2.0.0",
+  "description": "Rotary Feud — React + Express + Socket.io",
+  "scripts": {
+    "server": "npm start --prefix server",
+    "client": "npm run dev --prefix client",
+    "install:all": "npm install --prefix server && npm install --prefix client"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}

@@ -1,0 +1,582 @@
+{
+    "We asked 100 Rotarians... name something you never forget when going for a meeting": [
+        [
+            "Phone",
+            "22"
+        ],
+        [
+            "Rotary pin",
+            "18"
+        ],
+        [
+            "Business cards",
+            "14"
+        ],
+        [
+            "Notebook/pen",
+            "12"
+        ],
+        [
+            "Car keys",
+            "10"
+        ],
+        [
+            "Wallet/money",
+            "8"
+        ],
+        [
+            "Club shirt",
+            "6"
+        ],
+        [
+            "Name badge",
+            "5"
+        ],
+        [
+            "Perfume",
+            "3"
+        ],
+        [
+            "Agenda/notes",
+            "2"
+        ]
+    ],
+    "We asked 100 Rotarians... name something that can delay the start of a meeting": [
+        [
+            "Members arriving late",
+            "25"
+        ],
+        [
+            "Traffic",
+            "18"
+        ],
+        [
+            "Late guest speaker",
+            "15"
+        ],
+        [
+            "Sound/mic issues",
+            "12"
+        ],
+        [
+            "Fellowship not ending",
+            "10"
+        ],
+        [
+            "President not arrived",
+            "8"
+        ],
+        [
+            "Registration delays",
+            "5"
+        ],
+        [
+            "Setup issues",
+            "4"
+        ],
+        [
+            "Weather",
+            "2"
+        ],
+        [
+            "Last-minute changes",
+            "1"
+        ]
+    ],
+    "We asked 100 Rotarians... name a youth program in Rotary International": [
+        [
+            "Rotaract",
+            "40"
+        ],
+        [
+            "Interact",
+            "30"
+        ],
+        [
+            "Rotary Youth Exchange",
+            "15"
+        ],
+        [
+            "RYLA",
+            "10"
+        ],
+        [
+            "EarlyAct",
+            "5"
+        ]
+    ],
+    "We asked 100 Rotarians... name something people rush for after the meeting": [
+        [
+            "Food",
+            "30"
+        ],
+        [
+            "Networking",
+            "18"
+        ],
+        [
+            "Photos",
+            "12"
+        ],
+        [
+            "Catching up",
+            "10"
+        ],
+        [
+            "Leaving early",
+            "8"
+        ],
+        [
+            "Drinks",
+            "7"
+        ],
+        [
+            "Phone calls",
+            "5"
+        ],
+        [
+            "Parking escape",
+            "4"
+        ],
+        [
+            "Business deals",
+            "3"
+        ],
+        [
+            "Social media posts",
+            "3"
+        ]
+    ],
+    "We asked 100 Rotarians... name something that makes a meeting boring": [
+        [
+            "Long speeches",
+            "22"
+        ],
+        [
+            "Unengaging speaker",
+            "18"
+        ],
+        [
+            "No interaction",
+            "15"
+        ],
+        [
+            "Poor timekeeping",
+            "12"
+        ],
+        [
+            "Repetitive topics",
+            "10"
+        ],
+        [
+            "Low attendance",
+            "7"
+        ],
+        [
+            "Technical issues",
+            "6"
+        ],
+        [
+            "Low energy",
+            "5"
+        ],
+        [
+            "Too formal",
+            "3"
+        ],
+        [
+            "No food",
+            "2"
+        ]
+    ],
+    "We asked 100 Rotarians... name something members love about fellowship": [
+        [
+            "Friendship",
+            "22"
+        ],
+        [
+            "Food",
+            "18"
+        ],
+        [
+            "Networking",
+            "15"
+        ],
+        [
+            "Fun/laughter",
+            "12"
+        ],
+        [
+            "Relaxation",
+            "10"
+        ],
+        [
+            "Catching up",
+            "8"
+        ],
+        [
+            "Learning",
+            "5"
+        ],
+        [
+            "Business connections",
+            "4"
+        ],
+        [
+            "Entertainment",
+            "3"
+        ],
+        [
+            "Escaping stress",
+            "3"
+        ]
+    ],
+    "We asked 100 Rotarians... name an excuse someone gives for missing a meeting": [
+        [
+            "Work was busy",
+            "24"
+        ],
+        [
+            "Travel",
+            "18"
+        ],
+        [
+            "Traffic jam",
+            "15"
+        ],
+        [
+            "Family commitment",
+            "12"
+        ],
+        [
+            "I forgot",
+            "10"
+        ],
+        [
+            "Not feeling well",
+            "8"
+        ],
+        [
+            "Late meeting",
+            "5"
+        ],
+        [
+            "Weather",
+            "3"
+        ],
+        [
+            "Car trouble",
+            "3"
+        ],
+        [
+            "Thought it was online",
+            "2"
+        ]
+    ],
+    "We asked 100 Rotarians... name something a club president cannot avoid doing": [
+        [
+            "Giving speeches",
+            "22"
+        ],
+        [
+            "Attending events",
+            "18"
+        ],
+        [
+            "Calling members",
+            "15"
+        ],
+        [
+            "Solving problems",
+            "12"
+        ],
+        [
+            "Planning meetings",
+            "10"
+        ],
+        [
+            "Representing club",
+            "8"
+        ],
+        [
+            "Handling complaints",
+            "6"
+        ],
+        [
+            "Encouraging attendance",
+            "4"
+        ],
+        [
+            "Delegating",
+            "3"
+        ],
+        [
+            "Smiling under pressure",
+            "2"
+        ]
+    ],
+    "We asked 100 Rotarians... name something you see at every Rotary project": [
+        [
+            "Volunteers",
+            "22"
+        ],
+        [
+            "Banners",
+            "18"
+        ],
+        [
+            "Photos",
+            "15"
+        ],
+        [
+            "Beneficiaries",
+            "12"
+        ],
+        [
+            "Members",
+            "10"
+        ],
+        [
+            "Tools/equipment",
+            "8"
+        ],
+        [
+            "Leaders",
+            "5"
+        ],
+        [
+            "Media",
+            "4"
+        ],
+        [
+            "Dust/mud",
+            "3"
+        ],
+        [
+            "Water bottles",
+            "3"
+        ]
+    ],
+    "We asked 100 Rotarians... name an Area of Focus of Rotary Foundation (2)": [
+        [
+            "Peacebuilding & conflict prevention",
+            "20"
+        ],
+        [
+            "Disease prevention & treatment",
+            "18"
+        ],
+        [
+            "Water, sanitation & hygiene",
+            "16"
+        ],
+        [
+            "Maternal & child health",
+            "14"
+        ],
+        [
+            "Basic education & literacy",
+            "12"
+        ],
+        [
+            "Community economic development",
+            "10"
+        ],
+        [
+            "Supporting the environment",
+            "10"
+        ]
+    ],
+    "We asked 100 Rotarians... name something Rotary is famous for": [
+        [
+            "End Polio Now",
+            "35"
+        ],
+        [
+            "Community service",
+            "25"
+        ],
+        [
+            "Networking",
+            "18"
+        ],
+        [
+            "Leadership development",
+            "12"
+        ],
+        [
+            "The Four-Way Test",
+            "6"
+        ],
+        [
+            "Global grants",
+            "4"
+        ]
+    ],
+    "We asked 100 Rotarians... name a leadership role in a club": [
+        [
+            "President",
+            "40"
+        ],
+        [
+            "Secretary",
+            "25"
+        ],
+        [
+            "Treasurer",
+            "20"
+        ],
+        [
+            "Membership Chair",
+            "8"
+        ],
+        [
+            "Foundation Chair",
+            "4"
+        ],
+        [
+            "Public Image Chair",
+            "3"
+        ]
+    ],
+    "We asked 100 Rotarians... name something funded by the Rotary Foundation": [
+        [
+            "Global Grants",
+            "30"
+        ],
+        [
+            "Scholarships",
+            "25"
+        ],
+        [
+            "Polio eradication",
+            "20"
+        ],
+        [
+            "District Grants",
+            "12"
+        ],
+        [
+            "Peace Fellowships",
+            "8"
+        ],
+        [
+            "Vocational Training Teams",
+            "5"
+        ]
+    ],
+    "We asked 100 Rotarians... name one part of the Four-Way Test": [
+        [
+            "Is it the truth?",
+            "40"
+        ],
+        [
+            "Is it fair to all concerned?",
+            "30"
+        ],
+        [
+            "Will it build goodwill and better friendships?",
+            "20"
+        ],
+        [
+            "Will it be beneficial to all concerned?",
+            "10"
+        ]
+    ],
+    "We asked 100 Rotarians... name a type of Rotary grant": [
+        [
+            "Global Grant",
+            "40"
+        ],
+        [
+            "District Grant",
+            "30"
+        ],
+        [
+            "Disaster Response Grant",
+            "15"
+        ],
+        [
+            "Program of Scale Grant",
+            "10"
+        ],
+        [
+            "Packaged Grant",
+            "5"
+        ]
+    ],
+    "We asked 100 Rotarians... name a Rotary membership type": [
+        [
+            "Active",
+            "35"
+        ],
+        [
+            "Honorary",
+            "25"
+        ],
+        [
+            "Corporate",
+            "20"
+        ],
+        [
+            "Associate",
+            "12"
+        ],
+        [
+            "Satellite",
+            "5"
+        ],
+        [
+            "Alumni",
+            "3"
+        ]
+    ],
+    "We asked 100 Rotarians... name a level in Rotary structure": [
+        [
+            "Club",
+            "35"
+        ],
+        [
+            "District",
+            "30"
+        ],
+        [
+            "Zone",
+            "15"
+        ],
+        [
+            "Region",
+            "12"
+        ],
+        [
+            "Rotary International",
+            "8"
+        ]
+    ],
+    "We asked 100 Rotarians... name something required for a successful Global Grant": [
+        [
+            "Sustainability",
+            "25"
+        ],
+        [
+            "Needs assessment",
+            "22"
+        ],
+        [
+            "Measurable impact",
+            "20"
+        ],
+        [
+            "Qualified clubs",
+            "15"
+        ],
+        [
+            "Proper reporting",
+            "10"
+        ],
+        [
+            "Area of focus alignment",
+            "8"
+        ]
+    ]
+}

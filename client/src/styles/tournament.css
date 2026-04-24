@@ -1,0 +1,148 @@
+/* Leaderboard */
+.leaderboardPage {
+  background: linear-gradient(to bottom, #a7cfdf 0%, #23538a 100%);
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.leaderboardContainer {
+  background: rgba(12,71,121,0.95);
+  border-radius: 30px;
+  padding: 50px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  max-width: 900px;
+  width: 100%;
+  border: 5px solid #003c7b;
+}
+
+.leaderboardContainer h1 {
+  text-align: center;
+  color: white;
+  font-size: 3em;
+  margin-bottom: 10px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.roundTitle {
+  text-align: center;
+  color: rgba(255,255,255,0.9);
+  font-size: 1.5em;
+  font-weight: bold;
+  margin-bottom: 30px;
+}
+
+.leaderboardTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 30px;
+}
+
+.leaderboardTable th {
+  background: linear-gradient(to bottom, #7db9e8 0%, #207cca 49%, #2989d8 50%, #1e5799 100%);
+  color: white;
+  padding: 20px;
+  text-align: left;
+  font-size: 20px;
+  border: 2px solid #003c7b;
+}
+
+.leaderboardTable td {
+  padding: 18px 20px;
+  border: 2px solid #003c7b;
+  font-size: 18px;
+  background: linear-gradient(to bottom, #cedbe9 0%, #aac5de 17%, #6199c7 50%, #3a84c3 51%, #419ad6 59%, #4bb8f0 71%, #3a8bc2 84%, #26558b 100%);
+  color: white;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+}
+
+.rank { font-weight: bold; font-size: 24px; }
+.teamName { font-weight: bold; }
+.leaderboardTable td.score { font-size: 24px; font-weight: bold; }
+
+.proceedBtn {
+  width: 100%;
+  padding: 20px;
+  background: linear-gradient(to bottom, #7db9e8 0%, #207cca 49%, #2989d8 50%, #1e5799 100%);
+  color: white;
+  border: 3px solid white;
+  border-radius: 15px;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  font-family: helvetica, sans-serif;
+}
+.proceedBtn:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.4); }
+
+/* Winner */
+.winnerPage {
+  background: linear-gradient(to bottom, #a7cfdf 0%, #23538a 100%);
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.winnerContainer {
+  background: rgba(12,71,121,0.95);
+  border-radius: 30px;
+  padding: 70px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  text-align: center;
+  max-width: 700px;
+  width: 100%;
+  border: 5px solid #003c7b;
+  animation: winnerPulse 2s ease-in-out infinite;
+}
+
+@keyframes winnerPulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.02); }
+}
+
+.winnerContainer h1 {
+  font-size: 3.5em;
+  color: white;
+  margin-bottom: 20px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.winnerName {
+  font-size: 3em;
+  font-weight: bold;
+  color: white;
+  margin: 30px 0;
+  background: linear-gradient(to bottom, #7db9e8 0%, #207cca 49%, #2989d8 50%, #1e5799 100%);
+  padding: 20px;
+  border-radius: 15px;
+  border: 3px solid white;
+}
+
+.finalScore {
+  font-size: 2em;
+  color: white;
+  font-weight: bold;
+}
+
+.restartBtn {
+  margin-top: 40px;
+  padding: 20px 50px;
+  background: linear-gradient(to bottom, #7db9e8 0%, #207cca 49%, #2989d8 50%, #1e5799 100%);
+  color: white;
+  border: 3px solid white;
+  border-radius: 15px;
+  font-size: 22px;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: helvetica, sans-serif;
+  transition: transform 0.2s;
+}
+.restartBtn:hover { transform: translateY(-3px); }
