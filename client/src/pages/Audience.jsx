@@ -4,20 +4,22 @@ import GameBoard from '../components/GameBoard';
 import '../styles/board.css';
 
 export default function Audience({ state, dispatch }) {
-  if (!state) return null;
-  if (state.phase === 'registration') return <Navigate to="/registration" replace />;
-  if (state.phase === 'leaderboard')  return <Navigate to="/leaderboard"  replace />;
-  if (state.phase === 'winner')       return <Navigate to="/winner"        replace />;
+  // Must have joined via room code
+  const joined = sessionStorage.getItem('audienceJoined');
+  if (!joined) return <Navigate to="/join" replace />;
 
-  return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <GameBoard state={state} dispatch={dispatch} isHost={false} />
-      <button
-        className="beHostBtn"
-        onClick={() => window.open('/host', '_blank')}
-      >
-        🎙 Be the Host
-      </button>
-    </div>
-  );
+  if (!state) return null;
+  if (state.phase === 'registration') {
+    // Game hasn't started yet — show a waiting screen
+    return (
+      <div className="loading">
+        <div className="loadingSpinner" />
+        <p>Waiting for the host to start the game…</p>
+      </div>
+    );
+  }
+  if (state.phase === 'leaderboard') return <Navigate to="/leaderboard" replace />;
+  if (state.phase === 'winner')      return <Navigate to="/winner"      replace />;
+
+  return <GameBoard state={state} dispatch={dispatch} isHost={false} />;
 }

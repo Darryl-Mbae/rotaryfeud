@@ -99,3 +99,36 @@
   .teamsGrid { grid-template-columns: 1fr; }
   .setupContainer { padding: 30px 20px; }
 }
+
+/* Room code banner */
+.roomCodeBanner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #1e5799;
+  color: white;
+  border-radius: 12px;
+  padding: 16px 24px;
+  margin-bottom: 28px;
+  gap: 4px;
+}
+
+.roomCodeLabel {
+  font-size: 0.7em;
+  font-weight: 700;
+  letter-spacing: 2px;
+  opacity: 0.8;
+  text-transform: uppercase;
+}
+
+.roomCodeValue {
+  font-size: 2.4em;
+  font-weight: 900;
+  letter-spacing: 10px;
+  line-height: 1.1;
+}
+
+.roomCodeHint {
+  font-size: 0.75em;
+  opacity: 0.75;
+}

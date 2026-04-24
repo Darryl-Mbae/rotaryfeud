@@ -21,7 +21,9 @@ function playSound(name) {
 export default function GameBoard({ state, dispatch, isHost }) {
   const { tournament, currentQ, wrong, flippedCards, pointsAwarded } = state;
   const [showWrong, setShowWrong] = useState(false);
+  const [showRoomCode, setShowRoomCode] = useState(true);
   const wrongTimer = useRef(null);
+  const roomCode = isHost ? sessionStorage.getItem('roomCode') : null;
 
   const match = tournament.matches[tournament.currentMatch];
   const team1 = tournament.teams[match?.team1];
@@ -85,6 +87,19 @@ export default function GameBoard({ state, dispatch, isHost }) {
 
   return (
     <div className={`gameBoard${isHost ? ' showHost' : ''}`}>
+
+      {/* Room code — fixed top-right, host only */}
+      {isHost && roomCode && (
+        <div className="roomCodeOverlay">
+          {showRoomCode
+            ? <span className="roomCodeText">ROOM: <strong>{roomCode}</strong></span>
+            : <span className="roomCodeText">ROOM: ••••••</span>
+          }
+          <button className="roomCodeToggle" onClick={() => setShowRoomCode(v => !v)}>
+            {showRoomCode ? '🙈' : '👁'}
+          </button>
+        </div>
+      )}
 
       {/* Match info */}
       <div className="matchInfo">

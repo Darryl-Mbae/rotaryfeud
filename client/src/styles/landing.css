@@ -1,0 +1,266 @@
+/* ── Split layout ─────────────────────────────────────────────────────────── */
+.splitPage,
+.landingPage {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100vw;
+  min-height: 100vh;
+}
+
+/* Left panel — white form area */
+.splitLeft,
+.landingLeft {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 52px 56px;
+  box-sizing: border-box;
+  background: #fff;
+  min-height: 100vh;
+}
+
+/* Right panel — mosaic fills full height */
+.splitRight,
+.landingRight {
+  background: #f0f6ff;
+  display: grid;
+  border-left: 5px solid #003c7b;
+  overflow: hidden;
+  min-height: 100vh;
+}
+
+.splitForm,
+.landingCard {
+  width: 100%;
+  max-width: 340px;
+}
+
+/* Right panel branding */
+.rightBrand {
+  text-align: center;
+  color: white;
+  text-shadow: 1px 1px 4px rgba(0,0,0,0.6);
+}
+.rightBrand h2 {
+  font-size: 2.8rem;
+  font-weight: 900;
+  margin: 0 0 8px;
+  letter-spacing: 2px;
+}
+.rightBrand p {
+  font-size: 1rem;
+  opacity: 0.8;
+  margin: 0;
+}
+
+/* Score-style decorative boxes */
+.rightScores {
+  display: flex;
+  gap: 12px;
+}
+.rightScore {
+  width: 70px;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: white;
+  background: linear-gradient(to bottom, #7db9e8 0%, #207cca 49%, #2989d8 50%, #1e5799 100%);
+  border: 3px solid white;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+}
+
+/* ── Form elements ────────────────────────────────────────────────────────── */
+.splitLogo { font-size: 1.8rem; margin-bottom: 10px; }
+
+.splitTitle,
+.landingTitle {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #111;
+  margin: 0 0 6px;
+  letter-spacing: -0.3px;
+}
+
+.splitSub,
+.landingSubtitle {
+  font-size: 0.85rem;
+  color: #888;
+  margin: 0 0 32px;
+}
+
+.splitActions { display: flex; flex-direction: column; gap: 10px; }
+
+.splitBtn,
+.landingBtn {
+  width: 100%;
+  padding: 13px 20px;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: filter 0.15s, transform 0.1s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-family: helvetica, sans-serif;
+}
+.splitBtn:hover:not(:disabled),
+.landingBtn:hover:not(:disabled) { filter: brightness(0.92); transform: translateY(-1px); }
+.splitBtn:disabled,
+.landingBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.splitBtn.primary,
+.hostBtn {
+  background: linear-gradient(to bottom, #7db9e8 0%, #207cca 49%, #2989d8 50%, #1e5799 100%);
+  color: white;
+  border: 2px solid #003c7b;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+}
+
+.splitBtn.secondary,
+.audienceBtn {
+  background: #f0f6ff;
+  color: #1e5799;
+  border: 2px solid #b8d4f0;
+}
+
+.splitOr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #ccc;
+  font-size: 0.78rem;
+}
+.splitOr::before, .splitOr::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e8e8e8;
+}
+
+.splitHint {
+  font-size: 0.75rem;
+  color: #bbb;
+  text-align: center;
+  margin-top: 20px;
+}
+
+.btnLabel { font-size: 0.92rem; font-weight: 600; }
+.btnHint  { font-size: 0.72rem; opacity: 0.7; }
+
+/* ── Inputs ───────────────────────────────────────────────────────────────── */
+.codeInput {
+  width: 100%;
+  padding: 13px 16px;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 6px;
+  text-align: center;
+  text-transform: uppercase;
+  border: 2px solid #d0e4f7;
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: #1e5799;
+  background: #f5faff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  font-family: helvetica, sans-serif;
+}
+.codeInput:focus {
+  outline: none;
+  border-color: #207cca;
+  box-shadow: 0 0 0 3px rgba(32,124,202,0.12);
+  background: #fff;
+}
+
+.formError {
+  color: #c0392b;
+  font-size: 0.82rem;
+  margin: 8px 0 0;
+}
+
+/* ── Back link ────────────────────────────────────────────────────────────── */
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 28px;
+  transition: color 0.15s;
+  font-family: helvetica, sans-serif;
+}
+.backLink:hover { color: #1e5799; }
+
+/* ── Auth tabs ────────────────────────────────────────────────────────────── */
+.authTabs {
+  display: flex;
+  border-bottom: 2px solid #e8f0f8;
+  margin-bottom: 22px;
+}
+.authTab {
+  flex: 1;
+  padding: 9px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #aaa;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  font-family: helvetica, sans-serif;
+}
+.authTab.active  { color: #1e5799; border-bottom-color: #207cca; }
+.authTab:hover:not(.active) { color: #555; }
+
+/* ── PIN display ──────────────────────────────────────────────────────────── */
+.pinDisplay {
+  font-size: 2.2rem;
+  font-weight: 900;
+  letter-spacing: 10px;
+  text-align: center;
+  color: #1e5799;
+  background: #f0f6ff;
+  border: 2px dashed #b8d4f0;
+  border-radius: 10px;
+  padding: 18px;
+  margin: 18px 0 10px;
+  user-select: all;
+}
+
+/* ── Contact note ─────────────────────────────────────────────────────────── */
+.contactNote {
+  margin-top: 20px;
+  padding: 12px 14px;
+  background: #f0f6ff;
+  border: 1px solid #d0e4f7;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  color: #555;
+  text-align: center;
+  line-height: 1.5;
+}
+.contactNote a {
+  color: #1e5799;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+@media (max-width: 700px) {
+  .splitPage, .landingPage { grid-template-columns: 1fr; }
+  .splitLeft, .landingLeft { padding: 36px 24px; }
+  .splitRight, .landingRight { display: none; }
+}
