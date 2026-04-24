@@ -2,9 +2,13 @@ services:
   - type: web
     name: rotary-feud
     runtime: node
-    rootDir: server
-    buildCommand: npm install && npm run build
-    startCommand: npm start
+    rootDir: .
+    buildCommand: npm install --prefix server && npm install --prefix client && npm run build --prefix client
+    startCommand: node server/index.js
     envVars:
       - key: NODE_ENV
         value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: https://rotaryfeud.onrender.com

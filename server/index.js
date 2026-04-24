@@ -14,7 +14,9 @@ const { validateAction, sanitizeString, HOST_ONLY_ACTIONS } = require('./validat
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const PORT        = process.env.PORT || 3001;
-const CLIENT_DIST = path.join(__dirname, '../client/dist');
+const CLIENT_DIST = process.env.CLIENT_DIST
+  ? path.resolve(process.env.CLIENT_DIST)
+  : path.join(__dirname, '../client/dist');
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
   : ['http://localhost:5173', 'http://localhost:3001'];
@@ -510,4 +512,11 @@ app.get('*', (_req, res) => {
 
 server.listen(PORT, () => {
   logger.info(`Server running on http://localhost:${PORT}`);
+  // Warn clearly if client dist is missing
+  const fs = require('fs');
+  if (!fs.existsSync(CLIENT_DIST)) {
+    logger.error(`CLIENT DIST NOT FOUND at ${CLIENT_DIST} — run 'npm run build' in client/`);
+  } else {
+    logger.info(`Serving client from ${CLIENT_DIST}`);
+  }
 });
